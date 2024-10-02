@@ -95,6 +95,7 @@ def get_container_count():
                         processed_images[image_name] = f"Failed: {response.status_code}"
             sheet[f'{response_column}{row}'] = processed_images[image_name]  
         workbook.save('image-report.xlsx')
+        print("Successful")
     except Exception as e:
         print(f"Failed to get image vulns from prisma: {e}")
         return None 
