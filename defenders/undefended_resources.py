@@ -1,4 +1,5 @@
 import requests, json, configparser, openpyxl
+from openpyxl import load_workbook
 def auth_func():
     config = configparser.ConfigParser()
     config.read('config.ini')
@@ -25,7 +26,7 @@ def auth_func():
         print(f"Failed to get authentication token: {e}")
         return None    
 token = auth_func()
-def report():
+def entity_report():
   config = configparser.ConfigParser()
   config.read('config.ini')
   base_url = config.get('prismacloud', 'cwp_api_url')
@@ -48,4 +49,26 @@ def report():
   file_name = "undefended_resources.xlsx"
   wb.save(file_name)
 
-report()
+def vm_report():
+  config = configparser.ConfigParser()
+  config.read('config.ini')
+  base_url = config.get('prismacloud', 'cwp_api_url')
+  headers = {
+      'Content-Type': 'application/json',
+      'x-redlock-auth': f'{token}'
+  }
+  payload = {}
+  url = f'{base_url}/api/v33.01/cloud/discovery/vms?hasDefender=false'
+  response = requests.request("GET", url, headers=headers, data=payload)
+  data = json.loads(response.text)
+  file_name = "undefended_resources.xlsx"
+  wb = load_workbook(file_name)
+  ws2 = wb.create_sheet(title="VMs")
+  headers = ["Name", "ARN", "AccountID", "Region"]
+  ws2.append(headers)
+  for item in data:
+     ws2.append([item.get('name', ''), item.get('arn', ''), item.get('accountID', ''), item.get('region', '')])
+  wb.save(file_name)
+
+entity_report()
+vm_report()
