@@ -28,7 +28,23 @@ def auth_func():
     except Exception as e:
         print(f"Failed to get authentication token: {e}")
         return None    
-
+def get_accounts():
+    print("Getting onboarded accounts.")
+    token = auth_func()
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    api_url = config.get('prismacloud', 'cspm_api_url')
+    url = f"{api_url}/cloud"
+    payload = {}
+    headers = {
+      'Accept': 'application/json',
+      'x-redlock-auth': token
+    }
+    response = requests.request("GET", url, headers=headers, data=payload)
+    global onboarded_accounts
+    onboarded_accounts = [(item.get("accountId", "")) for item in response.json()]
+    
+    
 # Get a list of existing prisma collections
 def get_collections():
     print("Getting current collections.")
@@ -55,7 +71,7 @@ def get_collections():
 # Parse the FinOps excel for Business Units and their associated Account IDs
 def get_BUs():
     print("Getting Business Units.")
-    file_path = 'PLACEHOLDER.xlsx'
+    file_path = 'FinOps_Hyperscalers_account_2024-11-25.xlsx'
     wb = openpyxl.load_workbook(file_path)
     sheet = wb.active
     result_dict = defaultdict(list)
@@ -70,10 +86,26 @@ def get_BUs():
                 result_dict[business_unit].append(account)
     global json_objects
     json_objects = [
-#        {"name": f"FinOps_{business_unit}", "assetGroups": { "accountIDs": [accounts] }}
-        {"name": f"test-finops_{business_unit}", "assetGroups": { "accountIds": accounts }}
+        {"name": f"FinOps_{business_unit}", "assetGroups": { "accountIds": accounts }}
         for business_unit, accounts in result_dict.items()
     ]
+    removed_accounts = []
+    for obj in json_objects:
+        if "assetGroups" in obj and "accountIds" in obj["assetGroups"]:
+            all_accounts = obj["assetGroups"]["accountIds"]
+            valid = [account for account in all_accounts if account in onboarded_accounts]
+            invalid = [account for account in all_accounts if account not in onboarded_accounts]
+            obj["assetGroups"]["accountIds"] = valid
+            if invalid:
+                removed_accounts.append({
+                    "name": obj["name"],
+                    "missingAccounts": invalid
+                })
+    outfile_accounts = open("nononboarded_accounts.txt", "w")
+    outfile_accounts.write(json.dumps(removed_accounts, indent=4))
+    outfile_accounts.close
+    print("Created nononboarded_accounts.txt")
+
     global business_list
     business_list = []
     for bu_obj in json_objects:
@@ -106,7 +138,7 @@ def update_collections():
                 print(f"Updating {existing_collection}")
                 url = f"{api_url}/entitlement/api/v1/collection/{col_id}"
                 payload = json.dumps(obj)
-#                print(payload)
+                #print(payload)
                 headers = {
                     'Content-Type': 'application/json',
                     'x-redlock-auth': token
@@ -127,7 +159,7 @@ def create_collections():
                 print(f"Creating {missing_collection}")
                 url = f"{api_url}/entitlement/api/v1/collection"
                 payload = json.dumps(obj)
-#                print(payload)
+                #print(payload)
                 headers = {
                     'Content-Type': 'application/json',
                     'x-redlock-auth': token
@@ -137,6 +169,7 @@ def create_collections():
 
 
 # Create Data
+get_accounts()
 get_collections()
 get_BUs()
 compare_collections()
