@@ -34,15 +34,16 @@ def get_accounts():
     config = configparser.ConfigParser()
     config.read('config.ini')
     api_url = config.get('prismacloud', 'cspm_api_url')
-    url = f"{api_url}/cloud"
+    url = f"{api_url}/cloud/group/13a69c92-4d5f-4600-9c7b-ee2cc77222c6"
     payload = {}
     headers = {
       'Accept': 'application/json',
       'x-redlock-auth': token
     }
     response = requests.request("GET", url, headers=headers, data=payload)
+    response_data = response.json()
     global onboarded_accounts
-    onboarded_accounts = [(item.get("accountId", "")) for item in response.json()]
+    onboarded_accounts = response_data.get("accountIds", [])
     
     
 # Get a list of existing prisma collections
@@ -109,8 +110,9 @@ def get_BUs():
     global business_list
     business_list = []
     for bu_obj in json_objects:
-        bu_name = bu_obj["name"]
-        business_list.append(bu_name)
+        if bu_obj.get("assetGroups", {}).get("accountIds"):
+            bu_name = bu_obj["name"]
+            business_list.append(bu_name)
 #   print(business_list)
 
 # Create a list of Missing collections, this will represent new Business Units added. Create a list of Existing collections. 
