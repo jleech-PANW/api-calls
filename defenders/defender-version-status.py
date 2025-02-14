@@ -5,7 +5,7 @@ from openpyxl import load_workbook
 
 def initialize_environment():
     dbconfig = configparser.ConfigParser()
-    dbconfig.read('config-ot.ini')
+    dbconfig.read('config.ini')
     config = {
         'CSPM_ENDPOINT': dbconfig.get('prismacloud', 'cspm_api_url'),
         'USERNAME': dbconfig.get('prismacloud', 'username'),
